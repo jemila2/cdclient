@@ -26,7 +26,7 @@ const Home = () => {
             Fast, affordable, and eco-friendly laundry solutions in Nigeria
           </p>
           <Link 
-            to="/customer/orders/new" 
+            to="orders/new" 
             className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-bold hover:bg-gray-100 transition"
           >
             Order Now
@@ -171,5 +171,6 @@ const testimonials = [
     comment: "My clothes have never been cleaner. Great service!",
   },
 ];
+
 
 export default Home;
