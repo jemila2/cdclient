@@ -25,7 +25,14 @@ requiredEnvVars.forEach(env => {
 });
 
 const corsOptions = {
-  origin: 'http://localhost:5173', 
+  origin: function (origin, callback) {
+    const allowedOrigins = ['https://jemila2.github.io', 'http://localhost:5173'];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }, // <- This closing bracket was missing
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
