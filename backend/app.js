@@ -111,7 +111,7 @@ app.use('/api/auth', require('./routes/auth'));
 
 app.use('/api/employee-requests', employeeRequestsRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/users', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/payments', paymentRoutes);
