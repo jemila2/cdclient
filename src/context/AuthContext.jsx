@@ -116,7 +116,7 @@ export function AuthProvider({ children }) {
   // 2. Then define your main methods
   const login = async (email, password) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/users/login', { email, password });
       const { user: userData, token } = response.data;
       
       const normalizedUser = {
@@ -162,7 +162,7 @@ export function AuthProvider({ children }) {
 
   const register = async (userData) => {
     try {
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post('/users/register', userData);
       
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
@@ -511,3 +511,4 @@ export const useAuth = () => {
   return context;
 
 };
+
