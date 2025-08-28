@@ -14,8 +14,11 @@ const hpp = require('hpp');
 const xss = require('xss-clean');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
+const jwt = require('jsonwebtoken');
 
 const app = express();
+
+// Check required environment variables
 const requiredEnvVars = ['JWT_SECRET', 'MONGODB_URI'];
 requiredEnvVars.forEach(env => {
   if (!process.env[env]) {
@@ -24,15 +27,26 @@ requiredEnvVars.forEach(env => {
   }
 });
 
+// CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = ['https://jemila2.github.io', 'http://localhost:5173'];
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    const allowedOrigins = [
+      'https://jemila2.github.io',
+      'http://localhost:5173',
+      // 'http://localhost:3000',
+      'http://localhost:3001' // Add your backend port for development
+    ];
+    
+    // Allow requests with no origin (like mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.warn('CORS blocked request from origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
-  }, // <- This closing bracket was missing
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
@@ -47,6 +61,7 @@ const corsOptions = {
   preflightContinue: false
 };
 
+// Middleware setup
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(helmet());
@@ -54,12 +69,15 @@ app.use(mongoSanitize());
 app.use(xss());
 app.use(hpp());
 
+// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 100, 
   message: 'Too many requests from this IP, please try again later'
 });
 app.use('/api', limiter);
+
+// Body parsing middleware
 app.use(express.json({
   limit: '10mb',
   verify: (req, res, buf) => {
@@ -74,6 +92,7 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Logging middleware
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
   app.use((req, res, next) => {
@@ -85,6 +104,7 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
+// Database connection
 connectDB().then(() => {
   console.log(' MongoDB connected successfully');
 }).catch(err => {
@@ -92,6 +112,10 @@ connectDB().then(() => {
   process.exit(1);
 });
 
+// Serve static files from React build (must come before routes)
+app.use(express.static(path.join(__dirname, 'client/build')));
+
+// Import routes
 const authRoutes = require('./routes/auth');
 const employeeRoutes = require('./routes/employeeRoutes');
 const orderRoutes = require('./routes/orderRoute');
@@ -106,12 +130,11 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const userRoutes = require('./routes/userRoutes');
 const employeeRequestsRoutes = require('./routes/employeeRequests');
-app.use('/api/auth', require('./routes/auth'));
 
-
+// API Routes (must come before the catch-all route)
+app.use('/api/auth', authRoutes);
 app.use('/api/employee-requests', employeeRequestsRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -123,18 +146,10 @@ app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/invoices', invoiceRoutes);
-
-if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
-    res.set('Cache-Control', 'no-store');
-    next();
-  });
-}
-
-const uploadsDir = path.join(__dirname, 'uploads/invoices');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+app.get('/api/data', (req, res) => {
+  res.json({ message: 'API response' });
+});
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
@@ -144,13 +159,48 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.all('*', (req, res) => {
+// Test endpoint
+app.get('/api/data', (req, res) => {
+  res.json({ message: 'API response' });
+});
+
+// CATCH-ALL ROUTE - Must come after all API routes but before 404 handler
+app.get('*', (req, res) => {
+  // Check if the request is for an API endpoint
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(404).json({
+      status: 'fail',
+      message: `API endpoint ${req.originalUrl} not found`
+    });
+  }
+  
+  // For non-API requests, serve the React app
+  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+});
+
+// Development caching
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
+}
+
+// File uploads directory setup
+const uploadsDir = path.join(__dirname, 'uploads/invoices');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// 404 handler for undefined API routes
+app.all('/api/*', (req, res) => {
   res.status(404).json({
     status: 'fail',
-    message: `Can't find ${req.originalUrl} on this server!`
+    message: `API endpoint ${req.originalUrl} not found!`
   });
 });
 
+// Error handling middleware
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({ error: 'Invalid JSON body' });
@@ -171,6 +221,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Server setup
 const PORT = process.env.PORT || 3001;
 const server = app.listen(PORT, () => {
   console.log(` Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
@@ -180,6 +231,7 @@ const server = app.listen(PORT, () => {
   });
 });
 
+// Process event handlers
 process.on('unhandledRejection', err => {
   console.error('UNHANDLED REJECTION!  Shutting down...');
   console.error(err.name, err.message);
