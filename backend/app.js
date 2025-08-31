@@ -37,8 +37,9 @@ const corsOptions = {
       'http://localhost:5173',
       'http://localhost:3001'
     ];
+   if (!origin) return callback(null, true);
     
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.warn('CORS blocked request from origin:', origin);
