@@ -124,7 +124,61 @@ export function AuthProvider({ children }) {
   };
 
   // 2. Then define your main methods
-  const login = async (email, password) => {
+  // const login = async (email, password) => {
+  //   try {
+  //     const response = await api.post('/users/login', { email, password });
+  //     const { user: userData, token } = response.data;
+      
+  //     const normalizedUser = {
+  //       id: userData._id || userData.id,
+  //       employeeId: userData.employeeId,
+  //       name: userData.name,
+  //       email: userData.email,
+  //       role: userData.role.toLowerCase()
+  //     };
+      
+  //     localStorage.setItem('token', token);
+  //     localStorage.setItem('user', JSON.stringify(normalizedUser));
+  //     setUser(normalizedUser);
+      
+  //     return { 
+  //       success: true,
+  //       user: normalizedUser 
+  //     };
+  //   } catch (error) {
+  //     return { 
+  //       success: false, 
+  //       message: error.response?.data?.message || 'Login failed' 
+  //     };
+  //   }
+  // };
+
+
+  // Change the login function in your AuthContext
+const login = async (email, password) => {
+  try {
+    // Try admin login first
+    const response = await api.post('/admin/login', { email, password });
+    const { user: userData, token } = response.data;
+    
+    const normalizedUser = {
+      id: userData._id || userData.id,
+      employeeId: userData.employeeId,
+      name: userData.name,
+      email: userData.email,
+      role: userData.role.toLowerCase()
+    };
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(normalizedUser));
+    setUser(normalizedUser);
+    
+    return { 
+      success: true,
+      user: normalizedUser 
+    };
+  } catch (error) {
+    // If admin login fails, try regular user login
     try {
       const response = await api.post('/users/login', { email, password });
       const { user: userData, token } = response.data;
@@ -145,13 +199,14 @@ export function AuthProvider({ children }) {
         success: true,
         user: normalizedUser 
       };
-    } catch (error) {
+    } catch (userError) {
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Login failed' 
+        message: userError.response?.data?.message || 'Login failed' 
       };
     }
-  };
+  }
+};
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -521,5 +576,6 @@ export const useAuth = () => {
   return context;
 
 };
+
 
 
