@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
 const connectDB = require('./DBConnections');
-const cors = require('cors');
+const cors = require('cors');                            
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -31,16 +31,13 @@ requiredEnvVars.forEach(env => {
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
+      'https://cdclient.vercel.app',
       'https://jemila2.github.io',
       'http://localhost:5173',
-      // 'http://localhost:3000',
-      'http://localhost:3001' // Add your backend port for development
+      'http://localhost:3001'
     ];
     
-    // Allow requests with no origin (like mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.warn('CORS blocked request from origin:', origin);
@@ -104,15 +101,7 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// Database connection
-connectDB().then(() => {
-  console.log(' MongoDB connected successfully');
-}).catch(err => {
-  console.error(' MongoDB connection error:', err);
-  process.exit(1);
-});
-
-// Serve static files from React build (must come before routes)
+// Serve static files from React build
 app.use(express.static(path.join(__dirname, 'client/build')));
 
 // Import routes
@@ -131,7 +120,7 @@ const taskRoutes = require('./routes/taskRoutes');
 const userRoutes = require('./routes/userRoutes');
 const employeeRequestsRoutes = require('./routes/employeeRequests');
 
-// API Routes (must come before the catch-all route)
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/employee-requests', employeeRequestsRoutes);
 app.use('/api/users', userRoutes);
@@ -146,16 +135,22 @@ app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/invoices', invoiceRoutes);
-app.get('/api/data', (req, res) => {
-  res.json({ message: 'API response' });
-});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const statusMap = {
+    0: 'Disconnected',
+    1: 'Connected',
+    2: 'Connecting',
+    3: 'Disconnecting'
+  };
+  
   res.status(200).json({
     status: 'OK',
+    database: statusMap[dbStatus] || 'Unknown',
     timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
-    memoryUsage: process.memoryUsage()
+    uptime: process.uptime()
   });
 });
 
@@ -164,9 +159,8 @@ app.get('/api/data', (req, res) => {
   res.json({ message: 'API response' });
 });
 
-// CATCH-ALL ROUTE - Must come after all API routes but before 404 handler
+// CATCH-ALL ROUTE
 app.get('*', (req, res) => {
-  // Check if the request is for an API endpoint
   if (req.originalUrl.startsWith('/api/')) {
     return res.status(404).json({
       status: 'fail',
@@ -174,9 +168,23 @@ app.get('*', (req, res) => {
     });
   }
   
-  // For non-API requests, serve the React app
-  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  res.sendFile(path.join(__dirname, 'cdclient/build', 'index.html'));
 });
+
+
+
+// Serve static files only if the directory exists
+const buildPath = path.join(__dirname, 'cdclient/build');
+
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath));
+  
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(buildPath, 'index.html'));
+  });
+} else {
+  console.log('Client build directory not found. API-only mode.');
+}
 
 // Development caching
 if (process.env.NODE_ENV === 'development') {
@@ -221,36 +229,51 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Server setup
-const PORT = process.env.PORT || 3001;
-const server = app.listen(PORT, () => {
-  console.log(` Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  console.log('Environment:', {
-    NODE_ENV: process.env.NODE_ENV,
-    DB: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
-  });
-});
+// Database connection and server startup
+async function startServer() {
+  try {
+    // Connect to MongoDB first
+    await connectDB();
+    console.log(' MongoDB connected successfully');
+    
+    // Then start the server
+    const PORT = process.env.PORT || 3001;
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(` Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+      console.log('Environment:', {
+        NODE_ENV: process.env.NODE_ENV,
+        DB: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+      });
+    });
 
-// Process event handlers
-process.on('unhandledRejection', err => {
-  console.error('UNHANDLED REJECTION!  Shutting down...');
-  console.error(err.name, err.message);
-  server.close(() => {
+    // Process event handlers
+    process.on('unhandledRejection', err => {
+      console.error('UNHANDLED REJECTION!  Shutting down...');
+      console.error(err.name, err.message);
+      server.close(() => {
+        process.exit(1);
+      });
+    });
+
+    process.on('uncaughtException', err => {
+      console.error('UNCAUGHT EXCEPTION!  Shutting down...');
+      console.error(err.name, err.message);
+      server.close(() => {
+        process.exit(1);
+      });
+    });
+
+    process.on('SIGTERM', () => {
+      console.log(' SIGTERM RECEIVED. Shutting down gracefully');
+      server.close(() => {
+        console.log(' Process terminated!');
+      });
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
     process.exit(1);
-  });
-});
+  }
+}
 
-process.on('uncaughtException', err => {
-  console.error('UNCAUGHT EXCEPTION!  Shutting down...');
-  console.error(err.name, err.message);
-  server.close(() => {
-    process.exit(1);
-  });
-});
-
-process.on('SIGTERM', () => {
-  console.log(' SIGTERM RECEIVED. Shutting down gracefully');
-  server.close(() => {
-    console.log(' Process terminated!');
-  });
-});
+// Start the server
+startServer();
