@@ -2,7 +2,6 @@
 
 
 
-//   if (!user) return <Navigate to="/login" replace />;
 
 //   return <Outlet />;
 // };
@@ -31,6 +30,7 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default ProtectedRoute;
+
 
 
 
