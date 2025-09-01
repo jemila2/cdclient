@@ -31,8 +31,12 @@ export function AuthProvider({ children }) {
   // });
 
 
-  const api = axios.create({
-  baseURL: 'https://backend-21-2fu1.onrender.com/api',
+const baseURL = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:3001/api' 
+  : 'https://backend-21-2fu1.onrender.com/api';
+
+const api = axios.create({
+  baseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -576,6 +580,7 @@ export const useAuth = () => {
   return context;
 
 };
+
 
 
 
