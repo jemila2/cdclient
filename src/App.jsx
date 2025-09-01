@@ -48,7 +48,6 @@
 // import EmployeeMessages from './pages/EmployeeMessages';
 // import ManageOrders from './pages/ManageOrders';
 
-// // Supplier Pages
 // import SupplierDashboard from './pages/SupplierDashboard';
 // import SupplierOrders from './pages/SupplierOrders';
 // import SupplierInventory from './pages/SupplierInventory';
