@@ -1,8 +1,6 @@
 
 
-// import { useAuth } from '../context/AuthContext';
 
-// const ProtectedRoute = () => {
 //   const { user, loading } = useAuth();
 
 //   if (loading) return <div>Loading...</div>;
@@ -35,5 +33,6 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default ProtectedRoute;
+
 
 
