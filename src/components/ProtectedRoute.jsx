@@ -3,7 +3,7 @@
 
 
 
-//   return <Outlet />;
+
 // };
 
 
@@ -30,6 +30,7 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default ProtectedRoute;
+
 
 
 
