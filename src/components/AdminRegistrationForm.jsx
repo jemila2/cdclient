@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -15,24 +14,73 @@ const AdminRegistrationForm = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
 
   const apiRequest = async (endpoint, options = {}) => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-    const url = `${API_BASE_URL}${endpoint}`;
+    // Use the same base URL as your AuthContext
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend-21-2fu1.onrender.com';
+    const url = `${API_BASE_URL}/api${endpoint}`;
     
-    const config = {
+    // Default configuration
+    const defaultConfig = {
       headers: {
         'Content-Type': 'application/json',
       },
-      ...options
+      credentials: 'include', // Include cookies if needed
     };
-    
-    const response = await fetch(url, config);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+
+    // Merge default config with provided options
+    const config = {
+      ...defaultConfig,
+      ...options,
+      headers: {
+        ...defaultConfig.headers,
+        ...options.headers,
+      },
+    };
+
+    // Handle request body - stringify if it's an object
+    if (config.body && typeof config.body === 'object') {
+      config.body = JSON.stringify(config.body);
     }
-    
-    return response.json();
+
+    try {
+      const response = await fetch(url, config);
+      
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      const isJson = contentType && contentType.includes('application/json');
+      
+      if (!response.ok) {
+        let errorData;
+        
+        try {
+          errorData = isJson ? await response.json() : { message: await response.text() };
+        } catch (parseError) {
+          errorData = { message: `HTTP error! status: ${response.status}` };
+        }
+        
+        throw new Error(
+          errorData.message || 
+          errorData.error || 
+          `Request failed with status ${response.status}`
+        );
+      }
+      
+      // Return appropriate data based on content type
+      if (isJson) {
+        return await response.json();
+      } else {
+        return await response.text();
+      }
+      
+    } catch (error) {
+      console.error('API request failed:', error);
+      
+      // Enhance error message for network errors
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        throw new Error('Network error: Unable to connect to the server');
+      }
+      
+      throw error;
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -57,12 +105,12 @@ const AdminRegistrationForm = ({ onSuccess }) => {
       // CORRECTED ENDPOINT: Use /admin/register-admin instead of /auth/register-admin
       const response = await apiRequest('/admin/register-admin', {
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           name: formData.name,
           email: formData.email,
           password: formData.password,
           secretKey: formData.secretKey
-        })
+        }
       });
 
       toast.success('Admin account created successfully!');
