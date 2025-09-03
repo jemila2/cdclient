@@ -1,8 +1,8 @@
 
 
+
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-// import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
@@ -18,28 +18,17 @@ export function AuthProvider({ children }) {
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   
-  // const navigate = useNavigate();
+  // Use the same base URL configuration as your API file
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend-21-2fu1.onrender.com';
 
-  // const api = axios.create({
-  //   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api',
-  //   timeout: 10000,
-  //   headers: {
-  //     'Content-Type': 'application/json',
-  //     'Accept': 'application/json'
-  //   },
-  //   withCredentials: true
-  // });
-
-
- const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend-21-2fu1.onrender.com';
-const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`, 
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
-});
+  const api = axios.create({
+    baseURL: `${API_BASE_URL}/api`,
+    timeout: 10000,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }
+  });
 
   // Enhanced interceptors
   api.interceptors.request.use((config) => {
@@ -79,8 +68,6 @@ const api = axios.create({
     }
   );
 
-
-    // 1. First define all helper functions
   const loadUser = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -112,75 +99,9 @@ const api = axios.create({
     }
   };
 
-  const refreshToken = async () => {
+  const login = async (email, password) => {
     try {
-      const response = await api.post('/auth/refresh');
-      localStorage.setItem('token', response.data.token);
-      return { success: true, token: response.data.token };
-    } catch (err) {
-      console.error('Token refresh error:', err);
-      logout();
-      throw new Error(err.response?.data?.message || 'Token refresh failed');
-    }
-  };
-
-  // 2. Then define your main methods
-  // const login = async (email, password) => {
-  //   try {
-  //     const response = await api.post('/users/login', { email, password });
-  //     const { user: userData, token } = response.data;
-      
-  //     const normalizedUser = {
-  //       id: userData._id || userData.id,
-  //       employeeId: userData.employeeId,
-  //       name: userData.name,
-  //       email: userData.email,
-  //       role: userData.role.toLowerCase()
-  //     };
-      
-  //     localStorage.setItem('token', token);
-  //     localStorage.setItem('user', JSON.stringify(normalizedUser));
-  //     setUser(normalizedUser);
-      
-  //     return { 
-  //       success: true,
-  //       user: normalizedUser 
-  //     };
-  //   } catch (error) {
-  //     return { 
-  //       success: false, 
-  //       message: error.response?.data?.message || 'Login failed' 
-  //     };
-  //   }
-  // };
-
-
-  // Change the login function in your AuthContext
-const login = async (email, password) => {
-  try {
-    // Try admin login first
-    const response = await api.post('/admin/login', { email, password });
-    const { user: userData, token } = response.data;
-    
-    const normalizedUser = {
-      id: userData._id || userData.id,
-      employeeId: userData.employeeId,
-      name: userData.name,
-      email: userData.email,
-      role: userData.role.toLowerCase()
-    };
-    
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(normalizedUser));
-    setUser(normalizedUser);
-    
-    return { 
-      success: true,
-      user: normalizedUser 
-    };
-  } catch (error) {
-    // If admin login fails, try regular user login
-    try {
+      // Try admin login first
       const response = await api.post('/users/login', { email, password });
       const { user: userData, token } = response.data;
       
@@ -200,31 +121,36 @@ const login = async (email, password) => {
         success: true,
         user: normalizedUser 
       };
-    } catch (userError) {
-      return { 
-        success: false, 
-        message: userError.response?.data?.message || 'Login failed' 
-      };
+    } catch (error) {
+      // If admin login fails, try regular user login
+      try {
+        const response = await api.post('/users/login', { email, password });
+        const { user: userData, token } = response.data;
+        
+        const normalizedUser = {
+          id: userData._id || userData.id,
+          employeeId: userData.employeeId,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role.toLowerCase()
+        };
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
+        setUser(normalizedUser);
+        
+        return { 
+          success: true,
+          user: normalizedUser 
+        };
+      } catch (userError) {
+        return { 
+          success: false, 
+          message: userError.response?.data?.message || 'Login failed' 
+        };
+      }
     }
-  }
-};
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    setOrders([]);
-    setSuppliers([]);
-    setCustomers([]);
-    setUsers([]);
-    return { success: true };
   };
-
- 
-  useEffect(() => {
-    loadUser();
-  }, []);
-
 
   const register = async (userData) => {
     try {
@@ -251,17 +177,16 @@ const login = async (email, password) => {
     }
   };
 
-  // const logout = () => {
-  //   localStorage.removeItem('token');
-  //   localStorage.removeItem('user');
-  //   setUser(null);
-  //   setOrders([]);
-  //   setSuppliers([]);
-  //   setCustomers([]);
-  //   setUsers([]);
-  //   navigate('/login');
-  //   return { success: true };
-  // };
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setOrders([]);
+    setSuppliers([]);
+    setCustomers([]);
+    setUsers([]);
+    return { success: true };
+  };
 
   // User management
   const getAllUsers = async (params = {}) => {
@@ -329,6 +254,26 @@ const login = async (email, password) => {
       throw err.response?.data || err;
     } finally {
       setOrdersLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (orderId, status) => {
+    try {
+      const response = await api.patch(`/orders/${orderId}/status`, { status });
+      return { success: true, order: response.data.order };
+    } catch (err) {
+      console.error('Order status update error:', err);
+      throw new Error(err.response?.data?.message || 'Order status update failed');
+    }
+  };
+
+  const completeOrder = async (orderId) => {
+    try {
+      const response = await api.post(`/orders/${orderId}/complete`);
+      return { success: true, order: response.data.order };
+    } catch (err) {
+      console.error('Order completion error:', err);
+      throw new Error(err.response?.data?.message || 'Order completion failed');
     }
   };
 
@@ -491,18 +436,39 @@ const login = async (email, password) => {
     }
   };
 
+  // Task management
+  const getEmployeeTasks = async (employeeId) => {
+    try {
+      const response = await api.get(`/tasks/employee/${employeeId}`);
+      return { success: true, data: response.data };
+    } catch (err) {
+      console.error('Error fetching employee tasks:', err);
+      throw new Error(err.response?.data?.message || 'Failed to fetch tasks');
+    }
+  };
+
+  const updateTaskStatus = async (taskId, status) => {
+    try {
+      const response = await api.patch(`/tasks/${taskId}/status`, { status });
+      return { success: true, task: response.data.task };
+    } catch (err) {
+      console.error('Task status update error:', err);
+      throw new Error(err.response?.data?.message || 'Task status update failed');
+    }
+  };
+
   // Token management
-  // const refreshToken = async () => {
-  //   try {
-  //     const response = await api.post('/auth/refresh');
-  //     localStorage.setItem('token', response.data.token);
-  //     return { success: true, token: response.data.token };
-  //   } catch (err) {
-  //     console.error('Token refresh error:', err);
-  //     logout();
-  //     throw new Error(err.response?.data?.message || 'Token refresh failed');
-  //   }
-  // };
+  const refreshToken = async () => {
+    try {
+      const response = await api.post('/auth/refresh');
+      localStorage.setItem('token', response.data.token);
+      return { success: true, token: response.data.token };
+    } catch (err) {
+      console.error('Token refresh error:', err);
+      logout();
+      throw new Error(err.response?.data?.message || 'Token refresh failed');
+    }
+  };
 
   // Role checking
   const hasRole = (role) => user?.role === role.toLowerCase();
@@ -512,7 +478,24 @@ const login = async (email, password) => {
   const isSupplier = () => hasRole('supplier');
   const isAuthenticated = () => !!user;
 
-  // Memoized context value
+  // Test connection
+  const testConnection = async () => {
+    try {
+      const response = await api.get('/health');
+      console.log('Backend connection successful:', response.data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Backend connection failed:', error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
+  useEffect(() => {
+    loadUser();
+    // Test connection on component mount
+    testConnection();
+  }, []);
+
   const value = useMemo(() => ({
     user,
     loading,
@@ -529,26 +512,31 @@ const login = async (email, password) => {
     logout,
     register,
     updateUser,
+    getAllUsers,
     createOrder,
     getOrders,
+    updateOrderStatus,
+    completeOrder,
     getSuppliers,
     createSupplier,
     updateSupplier,
     deleteSupplier,
     getCustomers,
-    fetchEmployeeStats,
     createCustomer,
     updateCustomer,
     deleteCustomer,
+    fetchEmployeeStats,
+    getEmployeeTasks,
+    updateTaskStatus,
     refreshToken,
+    testConnection,
     hasRole,
     isCustomer,
     isAdmin,
     isEmployee,
     isSupplier,
     isAuthenticated,
-    loadUser,
-    getAllUsers,
+    loadUser
   }), [
     user, 
     loading, 
@@ -577,9 +565,5 @@ export const useAuth = () => {
   return context;
 
 };
-
-
-
-
 
 
