@@ -152,30 +152,46 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async (userData) => {
-    try {
-      const response = await api.post('/users/register', userData);
-      
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        const user = {
-          ...response.data.user,
-          id: response.data.user._id || response.data.user.id,
-          role: (response.data.user.role || 'user').toLowerCase()
-        };
-        setUser(user);
-        localStorage.setItem('user', JSON.stringify(user));
-      }
-      
-      return { 
-        success: true,
-        user: response.data.user 
+const register = async (userData) => {
+  try {
+    console.log('Attempting registration with:', userData);
+    
+    const response = await api.post('/api/users/register', userData);
+    
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      const user = {
+        ...response.data.user,
+        id: response.data.user._id || response.data.user.id,
+        role: (response.data.user.role || 'user').toLowerCase()
       };
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw new Error(error.response?.data?.message || 'Registration failed');
+      setUser(user);
+      localStorage.setItem('user', JSON.stringify(user));
     }
-  };
+    
+    return { 
+      success: true,
+      user: response.data.user 
+    };
+  } catch (error) {
+    console.error('Registration error details:', error);
+    
+    // More detailed error handling
+    let errorMessage = 'Registration failed';
+    
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = 'Connection timeout. Please check your internet connection.';
+    } else if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    
+    
+    throw new Error(errorMessage);
+  }
+};
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -565,5 +581,6 @@ export const useAuth = () => {
   return context;
 
 };
+
 
 
