@@ -124,7 +124,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       // If admin login fails, try regular user login
       try {
-        const response = await api.post('/users/login', { email, password });
+        const response = await api.post('/auth/login', { email, password });
         const { user: userData, token } = response.data;
         
         const normalizedUser = {
@@ -156,7 +156,7 @@ const register = async (userData) => {
   try {
     console.log('Attempting registration with:', userData);
     
-    const response = await api.post('/api/users/register', userData);
+    const response = await api.post('/auth/register', userData);
     
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
@@ -581,6 +581,7 @@ export const useAuth = () => {
   return context;
 
 };
+
 
 
 
