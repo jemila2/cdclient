@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend-21-2fu1.onrender.com';
 
   const api = axios.create({
-    baseURL: `${API_BASE_URL}/api`,
+    baseURL: `${API_BASE_URL}`,
     timeout: 10000,
     headers: {
       'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       // Try admin login first
-      const response = await api.post('/users/login', { email, password });
+      const response = await api.post('/auth/login', { email, password });
       const { user: userData, token } = response.data;
       
       const normalizedUser = {
@@ -581,6 +581,7 @@ export const useAuth = () => {
   return context;
 
 };
+
 
 
 
